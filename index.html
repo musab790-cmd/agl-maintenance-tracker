@@ -69,7 +69,6 @@
         <button class="btn btn-green" onclick="openAddPPMModal()">+ Add PPM</button>
         <button class="btn btn-blue" onclick="openAddCMModal()">+ Add CM</button>
         <button class="btn btn-purple" onclick="generateReport()">📊 Generate Report</button>
-        <button class="btn btn-orange" onclick="window.location.href='mission-report.html'" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">🚁 Mission Report</button>
         <button class="btn btn-gray" onclick="showHistory()">📜 History</button>
     </div>
 
@@ -375,7 +374,8 @@
                     <button type="button" class="btn btn-gray" onclick="closeReportModal()">Cancel</button>
                     <button type="button" class="btn btn-gray" onclick="exportToCSV()">📊 Export CSV</button>
                     <button type="button" class="btn btn-blue" onclick="generateMissionReportFromModal()" id="liveReportBtn" style="display: none;">🔍 View Live Report</button>
-                    <button type="submit" class="btn btn-purple">📄 Generate PDF Report</button>
+                    <button type="button" class="btn btn-purple" onclick="generateMissionPDFReport()" id="missionPDFBtn" style="display: none;">📄 Generate Mission PDF</button>
+                    <button type="submit" class="btn btn-purple" id="standardPDFBtn">📄 Generate PDF Report</button>
                 </div>
             </form>
         </div>
