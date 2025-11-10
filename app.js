@@ -1075,35 +1075,49 @@ function toggleReportTypeFields() {
     const missionTimeFields = document.getElementById('missionTimeFields');
     const reportInfoBox = document.getElementById('reportInfoBox');
     const liveReportBtn = document.getElementById('liveReportBtn');
+    const missionPDFBtn = document.getElementById('missionPDFBtn');
+    const standardPDFBtn = document.getElementById('standardPDFBtn');
     
     if (reportType === 'mission-time') {
         dateRangeFields.style.display = 'none';
         missionTimeFields.style.display = 'block';
         
-        // Show live report button for mission time
+        // Show mission time specific buttons
         if (liveReportBtn) {
             liveReportBtn.style.display = 'inline-block';
+        }
+        if (missionPDFBtn) {
+            missionPDFBtn.style.display = 'inline-block';
+        }
+        if (standardPDFBtn) {
+            standardPDFBtn.style.display = 'none';
         }
         
         // Update info box
         reportInfoBox.innerHTML = `
             <p style="margin: 0; font-size: 14px; color: #666;">
-                <strong>🚁 Mission Time Report will include:</strong><br>
-                • Tasks updated during mission time period<br>
-                • Filtered by last update timestamp (updatedAt)<br>
+                <strong>🚁 Mission Time Report Options:</strong><br>
+                • <strong>View Live Report:</strong> Interactive preview with live stats<br>
+                • <strong>Generate Mission PDF:</strong> Direct Firebase query with timestamp filtering<br>
+                • Tasks filtered by last update timestamp (updatedAt)<br>
                 • Both PPM and CM tasks included<br>
                 • Photo evidence with timestamps<br>
-                • Mission activity summary<br>
-                • <strong>💡 Use "View Live Report" for interactive preview</strong>
+                • Mission duration calculation
             </p>
         `;
     } else {
         dateRangeFields.style.display = 'block';
         missionTimeFields.style.display = 'none';
         
-        // Hide live report button for date range
+        // Show standard PDF button, hide mission time buttons
         if (liveReportBtn) {
             liveReportBtn.style.display = 'none';
+        }
+        if (missionPDFBtn) {
+            missionPDFBtn.style.display = 'none';
+        }
+        if (standardPDFBtn) {
+            standardPDFBtn.style.display = 'inline-block';
         }
         
         // Restore original info box
@@ -1329,6 +1343,14 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
         ...cmTasks.map(t => ({...t, type: 'CM'}))
     ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     
+    // Calculate mission duration
+    const missionStartTime = new Date(missionStart).getTime();
+    const missionEndTime = new Date(missionEnd).getTime();
+    const duration = missionEndTime - missionStartTime; // duration in milliseconds
+    const durationHours = Math.floor(duration / (1000 * 60 * 60));
+    const durationMinutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+    const durationText = durationHours > 0 ? `${durationHours}h ${durationMinutes}m` : `${durationMinutes}m`;
+    
     // Create report container
     const reportHTML = `
         <div style="max-width: 900px; margin: 20px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -1339,7 +1361,7 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
                 </p>
             </div>
             
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; text-align: center;">
                     <div style="font-size: 32px; font-weight: bold; color: #1976d2;">${allTasks.length}</div>
                     <div style="color: #666; font-size: 14px;">Total Tasks</div>
@@ -1351,6 +1373,10 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
                 <div style="background: #fff3e0; padding: 15px; border-radius: 6px; text-align: center;">
                     <div style="font-size: 32px; font-weight: bold; color: #f57c00;">${cmTasks.length}</div>
                     <div style="color: #666; font-size: 14px;">CM Tasks</div>
+                </div>
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #7b1fa2;">${durationText}</div>
+                    <div style="color: #666; font-size: 14px;">Duration</div>
                 </div>
             </div>
             
@@ -1399,6 +1425,166 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
     
     // Close modal
     closeReportModal();
+}
+
+// 🆕 Generate Mission PDF Report with jsPDF
+async function generateMissionPDFReport() {
+    const reportType = document.getElementById('reportType').value;
+    
+    if (reportType !== 'mission-time') {
+        showNotification('Please select Mission Time Report type', 'error');
+        return;
+    }
+    
+    const missionStartInput = document.getElementById('missionStartTime').value;
+    const missionEndInput = document.getElementById('missionEndTime').value;
+    
+    if (!missionStartInput || !missionEndInput) {
+        showNotification('Please select both mission start and end times', 'error');
+        return;
+    }
+    
+    const missionStart = new Date(missionStartInput).getTime();
+    const missionEnd = new Date(missionEndInput).getTime();
+    const duration = missionEnd - missionStart; // duration in milliseconds
+    const durationHours = Math.floor(duration / (1000 * 60 * 60));
+    
+    if (missionStart > missionEnd) {
+        showNotification('Mission start time must be before end time', 'error');
+        return;
+    }
+    
+    showNotification('Generating Mission PDF Report...', 'info');
+    
+    try {
+        // Load jsPDF library if not loaded
+        if (typeof window.jspdf === 'undefined') {
+            await loadJsPDF();
+        }
+        
+        const { jsPDF } = window.jspdf;
+        
+        // Convert to ISO strings for Firebase query
+        const startISO = new Date(missionStart).toISOString();
+        const endISO = new Date(missionEnd).toISOString();
+        
+        // Fetch tasks directly from Firebase
+        const ppmSnapshot = await firebase.database().ref('/ppmTasks')
+            .orderByChild('updatedAt')
+            .startAt(startISO)
+            .endAt(endISO)
+            .once('value');
+        
+        const cmSnapshot = await firebase.database().ref('/cmTasks')
+            .orderByChild('updatedAt')
+            .startAt(startISO)
+            .endAt(endISO)
+            .once('value');
+        
+        const tasks = [];
+        
+        // Collect PPM tasks
+        ppmSnapshot.forEach(child => {
+            const task = child.val();
+            if (task.updatedAt) {
+                const taskTime = new Date(task.updatedAt).getTime();
+                if (taskTime >= missionStart && taskTime <= missionEnd) {
+                    tasks.push({...task, type: 'PPM'});
+                }
+            }
+        });
+        
+        // Collect CM tasks
+        cmSnapshot.forEach(child => {
+            const task = child.val();
+            if (task.updatedAt) {
+                const taskTime = new Date(task.updatedAt).getTime();
+                if (taskTime >= missionStart && taskTime <= missionEnd) {
+                    tasks.push({...task, type: 'CM'});
+                }
+            }
+        });
+        
+        // Sort by most recent
+        tasks.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        
+        // Create PDF
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        
+        // Header
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('MISSION TIME REPORT', pageWidth / 2, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`From: ${new Date(missionStart).toLocaleString()}`, 14, 35);
+        doc.text(`To: ${new Date(missionEnd).toLocaleString()}`, 14, 42);
+        doc.text(`Duration: ${durationHours} hours`, 14, 49);
+        doc.text(`Total Tasks: ${tasks.length} (${tasks.filter(t => t.type === 'PPM').length} PPM, ${tasks.filter(t => t.type === 'CM').length} CM)`, 14, 56);
+        
+        // Tasks
+        let y = 70;
+        
+        if (tasks.length === 0) {
+            doc.setFontSize(12);
+            doc.text('No tasks updated during mission time.', 14, y);
+        } else {
+            tasks.forEach((task, index) => {
+                // Check if we need a new page
+                if (y > pageHeight - 40) {
+                    doc.addPage();
+                    y = 20;
+                }
+                
+                // Task header
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                const taskTitle = task.description || task.workOrder || `Task ${index + 1}`;
+                doc.text(`${index + 1}. [${task.type}] ${taskTitle.substring(0, 60)}`, 14, y);
+                y += 6;
+                
+                // Task details
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                
+                if (task.type === 'PPM') {
+                    doc.text(`   Equipment: ${task.equipmentType || 'N/A'} | Status: ${task.status || 'N/A'}`, 14, y);
+                } else {
+                    doc.text(`   Work Order: ${task.workOrder || 'N/A'} | Priority: ${task.priority || 'N/A'} | Status: ${task.status || 'N/A'}`, 14, y);
+                }
+                y += 5;
+                
+                doc.text(`   Updated At: ${new Date(task.updatedAt).toLocaleString()}`, 14, y);
+                y += 5;
+                
+                if (task.assignedTo) {
+                    doc.text(`   Assigned To: ${task.assignedTo}`, 14, y);
+                    y += 5;
+                }
+                
+                if (task.location) {
+                    doc.text(`   Location: ${task.location}`, 14, y);
+                    y += 5;
+                }
+                
+                y += 5; // Space between tasks
+            });
+        }
+        
+        // Save PDF
+        const fileName = `Mission_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+        
+        showNotification(`Mission PDF Report generated: ${fileName}`, 'success');
+        closeReportModal();
+        
+    } catch (error) {
+        console.error('Mission PDF generation error:', error);
+        showNotification('Error generating mission PDF: ' + error.message, 'error');
+    }
 }
 
 // Filter tasks by mission time (using updatedAt timestamp)

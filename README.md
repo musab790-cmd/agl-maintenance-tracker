@@ -1,8 +1,8 @@
 # AGL MCT Airfield Maintenance Tracker
 
-**Version:** 3.0.6  
+**Version:** 3.0.9  
 **Last Updated:** November 10, 2025  
-**Latest Feature:** Mission Time Filtering
+**Latest Feature:** Dedicated Mission PDF Report Generator + Duration Fix
 
 ---
 
