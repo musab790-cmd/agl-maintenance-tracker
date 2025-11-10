@@ -1,7 +1,8 @@
 # AGL MCT Airfield Maintenance Tracker
 
-**Version:** 3.0.5  
-**Last Updated:** November 10, 2025
+**Version:** 3.0.6  
+**Last Updated:** November 10, 2025  
+**Latest Feature:** Mission Time Filtering
 
 ---
 
@@ -37,9 +38,10 @@ The AGL MCT Airfield Maintenance Tracker is a comprehensive web-based applicatio
 
 ### Reporting & Documentation
 - 📊 **PDF Reports**: Generate comprehensive reports with photo thumbnails
+- 🚁 **Mission Time Filtering**: Track task updates during specific time windows (NEW in v3.0.6)
 - 📸 **Photo Attachments**: Multiple photos per task with visual previews
 - 📈 **Dashboard Statistics**: Real-time overview of task status
-- 🔍 **Filtering**: Filter by shift, status, and date ranges
+- 🔍 **Filtering**: Filter by shift, status, date ranges, and mission time
 
 ### User Interface
 - 🎨 **Modern Design**: Clean, professional interface
@@ -67,6 +69,8 @@ webapp/
 │   ├── TESTING-GUIDE-v3.0.5.md         # Testing procedures
 │   ├── FIREBASE-SETUP-GUIDE.md         # Firebase setup instructions
 │   ├── SYNC-TESTING-GUIDE.md           # Sync testing procedures
+│   ├── MISSION-TIME-FILTERING-GUIDE.md # Mission time filtering guide (NEW)
+│   ├── MISSION-TIME-QUICK-REFERENCE.md # Mission time quick reference (NEW)
 │   ├── CHANGELOG-v3.0.5.md             # Latest changes
 │   ├── CHANGELOG-v3.0.1.md             # Sync fix changes
 │   ├── CHANGELOG-v3.0.md               # Firebase integration
@@ -232,7 +236,15 @@ firebase-root/
 
 ## 📊 Version History
 
-### v3.0.5 (Current) - PDF Photo Thumbnails
+### v3.0.6 (Current) - Mission Time Filtering
+- Added mission time report type for operational debriefs
+- Filter tasks by exact datetime ranges (not just dates)
+- Track task updates during specific mission windows
+- Timestamp-based filtering using updatedAt field
+- Perfect for mission debriefs, shift handovers, and incident investigation
+- See `docs/MISSION-TIME-FILTERING-GUIDE.md` for full details
+
+### v3.0.5 - PDF Photo Thumbnails
 - Added visual photo thumbnails to PDF reports
 - Both PPM and CM tasks show photo previews
 - Improved PDF report layout and organization
