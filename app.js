@@ -1074,10 +1074,16 @@ function toggleReportTypeFields() {
     const dateRangeFields = document.getElementById('dateRangeFields');
     const missionTimeFields = document.getElementById('missionTimeFields');
     const reportInfoBox = document.getElementById('reportInfoBox');
+    const liveReportBtn = document.getElementById('liveReportBtn');
     
     if (reportType === 'mission-time') {
         dateRangeFields.style.display = 'none';
         missionTimeFields.style.display = 'block';
+        
+        // Show live report button for mission time
+        if (liveReportBtn) {
+            liveReportBtn.style.display = 'inline-block';
+        }
         
         // Update info box
         reportInfoBox.innerHTML = `
@@ -1087,12 +1093,18 @@ function toggleReportTypeFields() {
                 • Filtered by last update timestamp (updatedAt)<br>
                 • Both PPM and CM tasks included<br>
                 • Photo evidence with timestamps<br>
-                • Mission activity summary
+                • Mission activity summary<br>
+                • <strong>💡 Use "View Live Report" for interactive preview</strong>
             </p>
         `;
     } else {
         dateRangeFields.style.display = 'block';
         missionTimeFields.style.display = 'none';
+        
+        // Hide live report button for date range
+        if (liveReportBtn) {
+            liveReportBtn.style.display = 'none';
+        }
         
         // Restore original info box
         reportInfoBox.innerHTML = `
@@ -1220,6 +1232,173 @@ async function generatePDFReport() {
         console.error('PDF generation error:', error);
         showNotification('Error generating PDF report: ' + error.message, 'error');
     }
+}
+
+// 🆕 Generate Mission Report with Direct Firebase Queries
+async function generateMissionReportFromModal() {
+    const reportType = document.getElementById('reportType').value;
+    
+    if (reportType !== 'mission-time') {
+        showNotification('Please select Mission Time Report type', 'error');
+        return;
+    }
+    
+    const missionStart = document.getElementById('missionStartTime').value;
+    const missionEnd = document.getElementById('missionEndTime').value;
+    
+    if (!missionStart || !missionEnd) {
+        showNotification('Please select both start and end dates', 'error');
+        return;
+    }
+    
+    const missionStartTimestamp = new Date(missionStart).getTime();
+    const missionEndTimestamp = new Date(missionEnd).getTime();
+    
+    if (missionStartTimestamp > missionEndTimestamp) {
+        showNotification('Mission start time must be before end time', 'error');
+        return;
+    }
+    
+    showNotification('Fetching mission report from Firebase...', 'info');
+    
+    try {
+        // Convert to ISO strings for Firebase query
+        const startISO = new Date(missionStartTimestamp).toISOString();
+        const endISO = new Date(missionEndTimestamp).toISOString();
+        
+        // Fetch PPM tasks directly from Firebase
+        const ppmSnapshot = await firebase.database().ref('/ppmTasks')
+            .orderByChild('updatedAt')
+            .startAt(startISO)
+            .endAt(endISO)
+            .once('value');
+        
+        // Fetch CM tasks directly from Firebase
+        const cmSnapshot = await firebase.database().ref('/cmTasks')
+            .orderByChild('updatedAt')
+            .startAt(startISO)
+            .endAt(endISO)
+            .once('value');
+        
+        const filteredPPMTasks = [];
+        const filteredCMTasks = [];
+        
+        // Collect PPM tasks
+        ppmSnapshot.forEach(child => {
+            const task = child.val();
+            if (task.updatedAt) {
+                const taskTime = new Date(task.updatedAt).getTime();
+                if (taskTime >= missionStartTimestamp && taskTime <= missionEndTimestamp) {
+                    filteredPPMTasks.push(task);
+                }
+            }
+        });
+        
+        // Collect CM tasks
+        cmSnapshot.forEach(child => {
+            const task = child.val();
+            if (task.updatedAt) {
+                const taskTime = new Date(task.updatedAt).getTime();
+                if (taskTime >= missionStartTimestamp && taskTime <= missionEndTimestamp) {
+                    filteredCMTasks.push(task);
+                }
+            }
+        });
+        
+        const totalTasks = filteredPPMTasks.length + filteredCMTasks.length;
+        
+        if (totalTasks === 0) {
+            showNotification('No tasks updated during mission time', 'info');
+            return;
+        }
+        
+        // Display results in modal or new window
+        renderMissionReportInModal(filteredPPMTasks, filteredCMTasks, missionStart, missionEnd);
+        showNotification(`Found ${filteredPPMTasks.length} PPM and ${filteredCMTasks.length} CM tasks`, 'success');
+        
+    } catch (error) {
+        console.error('Mission report error:', error);
+        showNotification('Error generating mission report: ' + error.message, 'error');
+    }
+}
+
+// Render mission report in a modal view
+function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd) {
+    const allTasks = [
+        ...ppmTasks.map(t => ({...t, type: 'PPM'})),
+        ...cmTasks.map(t => ({...t, type: 'CM'}))
+    ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    
+    // Create report container
+    const reportHTML = `
+        <div style="max-width: 900px; margin: 20px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="margin: 0 0 10px 0;">🚁 Mission Time Report</h2>
+                <p style="margin: 0; opacity: 0.9;">
+                    ${formatDateTime(missionStart)} to ${formatDateTime(missionEnd)}
+                </p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 32px; font-weight: bold; color: #1976d2;">${allTasks.length}</div>
+                    <div style="color: #666; font-size: 14px;">Total Tasks</div>
+                </div>
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 32px; font-weight: bold; color: #1976d2;">${ppmTasks.length}</div>
+                    <div style="color: #666; font-size: 14px;">PPM Tasks</div>
+                </div>
+                <div style="background: #fff3e0; padding: 15px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 32px; font-weight: bold; color: #f57c00;">${cmTasks.length}</div>
+                    <div style="color: #666; font-size: 14px;">CM Tasks</div>
+                </div>
+            </div>
+            
+            <div id="missionTasksList">
+                ${allTasks.map(task => `
+                    <div class="task-card" style="background: ${task.type === 'PPM' ? '#e3f2fd' : '#fff3e0'}; border-left: 4px solid ${task.type === 'PPM' ? '#1976d2' : '#f57c00'}; padding: 20px; margin-bottom: 15px; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">${task.description || task.workOrder || 'Task'}</h3>
+                            <span style="background: ${task.type === 'PPM' ? '#1976d2' : '#f57c00'}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">${task.type}</span>
+                        </div>
+                        <p style="margin: 10px 0; color: #555; line-height: 1.6;">
+                            ${task.type === 'PPM' ? `Type: ${task.type || 'N/A'} | Equipment: ${task.equipmentType || 'N/A'}` : `Work Order: ${task.workOrder || 'N/A'} | Priority: ${task.priority || 'N/A'}`}
+                        </p>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: #888;">
+                            <span>📅 <strong>Updated:</strong> ${new Date(task.updatedAt).toLocaleString()}</span>
+                            <span>🔄 <strong>Status:</strong> ${task.status || 'Unknown'}</span>
+                            ${task.assignedTo ? `<span>👤 <strong>Assigned:</strong> ${task.assignedTo}</span>` : ''}
+                            ${task.dayShift ? `<span>☀️ <strong>Day:</strong> ${task.dayShift}</span>` : ''}
+                            ${task.nightShift ? `<span>🌙 <strong>Night:</strong> ${task.nightShift}</span>` : ''}
+                            ${task.location ? `<span>📍 <strong>Location:</strong> ${task.location}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div style="margin-top: 30px; text-align: center;">
+                <button onclick="window.print()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-right: 10px;">
+                    🖨️ Print Report
+                </button>
+                <button onclick="document.getElementById('missionReportWindow').remove()" style="background: #6c757d; color: white; border: none; padding: 12px 30px; border-radius: 6px; font-size: 16px; cursor: pointer;">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Create or update report window
+    let reportWindow = document.getElementById('missionReportWindow');
+    if (!reportWindow) {
+        reportWindow = document.createElement('div');
+        reportWindow.id = 'missionReportWindow';
+        reportWindow.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; overflow-y: auto; padding: 20px;';
+        document.body.appendChild(reportWindow);
+    }
+    reportWindow.innerHTML = reportHTML;
+    
+    // Close modal
+    closeReportModal();
 }
 
 // Filter tasks by mission time (using updatedAt timestamp)
