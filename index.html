@@ -3,386 +3,359 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGL Maintenance Tracker - Professional Equipment Management</title>
+    <title>AGL Maintenance Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://res.cdn.office.net/teams-js/2.19.0/js/MicrosoftTeams.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
-    
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-tools"></i>
-                    <h1>AGL Maintenance Tracker</h1>
-                </div>
-                <nav class="nav-menu">
-                    <button class="nav-btn active" data-view="dashboard">
-                        <i class="fas fa-chart-line"></i> Dashboard
-                    </button>
-                    <button class="nav-btn" data-view="maintenance">
-                        <i class="fas fa-calendar-check"></i> Maintenance
-                    </button>
-                    <button class="nav-btn" data-view="reports">
-                        <i class="fas fa-file-alt"></i> Reports
-                    </button>
-                </nav>
+    <header class="app-header">
+        <div class="header-left">
+            <h1>AGL Maintenance Tracker</h1>
+            <p class="subtitle">MCT Airfield</p>
+        </div>
+        <div class="header-right">
+            <div class="sync-status" id="syncStatus">
+                <span class="status-indicator" id="statusIndicator"></span>
+                <span class="status-text" id="statusText">Connecting...</span>
             </div>
+            <span class="user-name" id="userName">User</span>
+            <span class="user-role" id="userRole">Maintenance Lead</span>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
-            
-            <!-- Dashboard View -->
-            <section id="dashboard-view" class="view active">
-                <div class="view-header">
-                    <h2><i class="fas fa-chart-line"></i> Dashboard Overview</h2>
-                    <button class="btn btn-primary" id="refreshDashboard">
-                        <i class="fas fa-sync-alt"></i> Refresh
-                    </button>
-                </div>
-
-                <!-- Statistics Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card stat-total">
-                        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
-                        <div class="stat-content">
-                            <h3 id="totalRecords">0</h3>
-                            <p>Total Records</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-scheduled">
-                        <div class="stat-icon"><i class="fas fa-calendar"></i></div>
-                        <div class="stat-content">
-                            <h3 id="scheduledCount">0</h3>
-                            <p>Scheduled</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-progress">
-                        <div class="stat-icon"><i class="fas fa-spinner"></i></div>
-                        <div class="stat-content">
-                            <h3 id="progressCount">0</h3>
-                            <p>In Progress</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-completed">
-                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
-                        <div class="stat-content">
-                            <h3 id="completedCount">0</h3>
-                            <p>Completed</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-overdue">
-                        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="stat-content">
-                            <h3 id="overdueCount">0</h3>
-                            <p>Overdue</p>
-                        </div>
-                    </div>
-                    <div class="stat-card stat-cost">
-                        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
-                        <div class="stat-content">
-                            <h3 id="totalCost">$0</h3>
-                            <p>Total Cost</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Charts -->
-                <div class="charts-grid">
-                    <div class="chart-card">
-                        <h3><i class="fas fa-chart-pie"></i> Maintenance by Type</h3>
-                        <div class="chart-container">
-                            <canvas id="typeChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fas fa-chart-bar"></i> Status Distribution</h3>
-                        <div class="chart-container">
-                            <canvas id="statusChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fas fa-layer-group"></i> Equipment Types</h3>
-                        <div class="chart-container">
-                            <canvas id="equipmentChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="chart-card">
-                        <h3><i class="fas fa-chart-line"></i> Priority Levels</h3>
-                        <div class="chart-container">
-                            <canvas id="priorityChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Recent Activity -->
-                <div class="recent-activity">
-                    <h3><i class="fas fa-history"></i> Recent Maintenance Activity</h3>
-                    <div id="recentActivityList" class="activity-list"></div>
-                </div>
-            </section>
-
-            <!-- Maintenance View -->
-            <section id="maintenance-view" class="view">
-                <div class="view-header">
-                    <h2><i class="fas fa-calendar-check"></i> Maintenance Records</h2>
-                    <button class="btn btn-primary" id="addRecordBtn">
-                        <i class="fas fa-plus"></i> Add New Record
-                    </button>
-                </div>
-
-                <!-- Filters and Search -->
-                <div class="filters-section">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Search equipment, technician, location...">
-                    </div>
-                    <div class="filter-group">
-                        <select id="statusFilter" class="filter-select">
-                            <option value="">All Status</option>
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Overdue">Overdue</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                        <select id="priorityFilter" class="filter-select">
-                            <option value="">All Priority</option>
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                        </select>
-                        <select id="typeFilter" class="filter-select">
-                            <option value="">All Types</option>
-                            <option value="Preventive">Preventive</option>
-                            <option value="Corrective">Corrective</option>
-                            <option value="Predictive">Predictive</option>
-                            <option value="Emergency">Emergency</option>
-                        </select>
-                        <select id="equipmentFilter" class="filter-select">
-                            <option value="">All Equipment</option>
-                            <option value="Vehicle">Vehicle</option>
-                            <option value="Machinery">Machinery</option>
-                            <option value="HVAC">HVAC</option>
-                            <option value="Electrical">Electrical</option>
-                            <option value="Plumbing">Plumbing</option>
-                            <option value="IT Equipment">IT Equipment</option>
-                            <option value="Other">Other</option>
-                        </select>
-                        <button class="btn btn-secondary" id="clearFilters">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Records Table -->
-                <div class="table-container">
-                    <table class="records-table" id="recordsTable">
-                        <thead>
-                            <tr>
-                                <th data-sort="equipment_name">Equipment <i class="fas fa-sort"></i></th>
-                                <th data-sort="equipment_type">Type <i class="fas fa-sort"></i></th>
-                                <th data-sort="maintenance_type">Maintenance <i class="fas fa-sort"></i></th>
-                                <th data-sort="scheduled_date">Scheduled <i class="fas fa-sort"></i></th>
-                                <th data-sort="status">Status <i class="fas fa-sort"></i></th>
-                                <th data-sort="priority">Priority <i class="fas fa-sort"></i></th>
-                                <th data-sort="technician">Technician <i class="fas fa-sort"></i></th>
-                                <th data-sort="cost">Cost <i class="fas fa-sort"></i></th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recordsTableBody">
-                            <!-- Records will be inserted here dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination -->
-                <div class="pagination" id="pagination">
-                    <button class="btn btn-secondary" id="prevPage" disabled>
-                        <i class="fas fa-chevron-left"></i> Previous
-                    </button>
-                    <span id="pageInfo">Page 1 of 1</span>
-                    <button class="btn btn-secondary" id="nextPage" disabled>
-                        Next <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
-            </section>
-
-            <!-- Reports View -->
-            <section id="reports-view" class="view">
-                <div class="view-header">
-                    <h2><i class="fas fa-file-alt"></i> Reports & Export</h2>
-                </div>
-
-                <div class="reports-grid">
-                    <div class="report-card">
-                        <div class="report-icon"><i class="fas fa-file-csv"></i></div>
-                        <h3>Export to CSV</h3>
-                        <p>Download all maintenance records in CSV format</p>
-                        <button class="btn btn-primary" id="exportCSV">
-                            <i class="fas fa-download"></i> Export CSV
-                        </button>
-                    </div>
-                    <div class="report-card">
-                        <div class="report-icon"><i class="fas fa-file-code"></i></div>
-                        <h3>Export to JSON</h3>
-                        <p>Download data in JSON format for analysis</p>
-                        <button class="btn btn-primary" id="exportJSON">
-                            <i class="fas fa-download"></i> Export JSON
-                        </button>
-                    </div>
-                    <div class="report-card">
-                        <div class="report-icon"><i class="fas fa-print"></i></div>
-                        <h3>Print Report</h3>
-                        <p>Generate a printable maintenance report</p>
-                        <button class="btn btn-primary" id="printReport">
-                            <i class="fas fa-print"></i> Print
-                        </button>
-                    </div>
-                    <div class="report-card">
-                        <div class="report-icon"><i class="fas fa-calendar-alt"></i></div>
-                        <h3>Monthly Summary</h3>
-                        <p>View detailed monthly maintenance summary</p>
-                        <button class="btn btn-primary" id="monthlySummary">
-                            <i class="fas fa-eye"></i> View Summary
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Summary Section -->
-                <div class="summary-section">
-                    <h3><i class="fas fa-chart-bar"></i> Maintenance Summary</h3>
-                    <div id="summaryContent" class="summary-content">
-                        <!-- Summary will be generated here -->
-                    </div>
-                </div>
-            </section>
-
+    <!-- Dashboard Cards -->
+    <div class="dashboard">
+        <div class="card card-blue">
+            <div class="card-icon">📅</div>
+            <div class="card-content">
+                <div class="card-value" id="tasksDueToday">0</div>
+                <div class="card-label">PPM TASKS DUE TODAY</div>
+            </div>
         </div>
-    </main>
 
-    <!-- Modal for Add/Edit Record -->
-    <div id="recordModal" class="modal">
+        <div class="card card-red">
+            <div class="card-icon">⚠️</div>
+            <div class="card-content">
+                <div class="card-value" id="overdueTasks">0</div>
+                <div class="card-label">OVERDUE PPM TASKS</div>
+            </div>
+        </div>
+
+        <div class="card card-yellow">
+            <div class="card-icon">⏳</div>
+            <div class="card-content">
+                <div class="card-value" id="inProgressTasks">0</div>
+                <div class="card-label">IN PROGRESS TASKS</div>
+            </div>
+        </div>
+
+        <div class="card card-purple">
+            <div class="card-icon">🔧</div>
+            <div class="card-content">
+                <div class="card-value" id="openCMTasks">0</div>
+                <div class="card-label">ACTIVE CM TASKS</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="btn btn-green" onclick="openAddPPMModal()">Add PPM</button>
+        <button class="btn btn-gray" onclick="showHistory()">History</button>
+        <button class="btn btn-blue" onclick="openAddCMModal()">Add CM</button>
+        <button class="btn btn-purple" onclick="generateReport()">Generate Report</button>
+    </div>
+
+    <!-- View Toggle and Filters -->
+    <div class="filters-section">
+        <div class="filter-left">
+            <div class="view-toggle">
+                <button id="ppmViewBtn" class="toggle-btn active" onclick="switchView('ppm')">📅 PPM Tasks</button>
+                <button id="cmViewBtn" class="toggle-btn" onclick="switchView('cm')">🔧 CM Tasks</button>
+            </div>
+        </div>
+        <div class="filter-right">
+            <select id="shiftFilter" class="filter-select" onchange="filterTasks()" style="display: none;">
+                <option value="All">All Shifts</option>
+                <option value="A">Shift A</option>
+                <option value="B">Shift B</option>
+                <option value="C">Shift C</option>
+                <option value="D">Shift D</option>
+            </select>
+            <select id="cmStatusFilter" class="filter-select" onchange="filterCMTasks()" style="display: none;">
+                <option value="All">All Status</option>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Pending Parts">Pending Parts</option>
+                <option value="Resolved">Resolved</option>
+            </select>
+            <input type="text" id="searchInput" class="search-input" placeholder="Search tasks..." oninput="filterTasks()">
+        </div>
+    </div>
+
+    <!-- PPM Tasks Table -->
+    <div id="ppmTasksContainer" class="tasks-container">
+        <table id="ppmTasksTable" class="tasks-table">
+            <thead>
+                <tr>
+                    <th>SHIFT TYPE</th>
+                    <th>TASK DESCRIPTION</th>
+                    <th>TYPE</th>
+                    <th>DUE DATE</th>
+                    <th>FREQUENCY</th>
+                    <th>STATUS</th>
+                    <th>DAY SHIFT</th>
+                    <th>NIGHT SHIFT</th>
+                    <th>PHOTO EVIDENCE</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody id="tasksTableBody">
+                <!-- PPM Tasks will be loaded here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- CM Tasks Table -->
+    <div id="cmTasksContainer" class="tasks-container" style="display: none;">
+        <table id="cmTasksTable" class="tasks-table">
+            <thead>
+                <tr>
+                    <th>WORK ORDER</th>
+                    <th>DESCRIPTION</th>
+                    <th>PRIORITY</th>
+                    <th>LOCATION</th>
+                    <th>REPORTED BY</th>
+                    <th>DATE REPORTED</th>
+                    <th>STATUS</th>
+                    <th>ASSIGNED TO</th>
+                    <th>PHOTOS</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody id="cmTasksTableBody">
+                <!-- CM Tasks will be loaded here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Add PPM Modal -->
+    <div id="addPPMModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modalTitle"><i class="fas fa-plus"></i> Add Maintenance Record</h2>
-                <button class="modal-close" id="modalClose">&times;</button>
+                <h2>Add/Edit PPM Task</h2>
+                <span class="close" onclick="closeAddPPMModal()">&times;</span>
             </div>
-            <form id="recordForm" class="modal-body">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="equipmentName"><i class="fas fa-cog"></i> Equipment Name *</label>
-                        <input type="text" id="equipmentName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="equipmentType"><i class="fas fa-layer-group"></i> Equipment Type *</label>
-                        <select id="equipmentType" required>
-                            <option value="">Select Type</option>
-                            <option value="Vehicle">Vehicle</option>
-                            <option value="Machinery">Machinery</option>
-                            <option value="HVAC">HVAC</option>
-                            <option value="Electrical">Electrical</option>
-                            <option value="Plumbing">Plumbing</option>
-                            <option value="IT Equipment">IT Equipment</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="maintenanceType"><i class="fas fa-wrench"></i> Maintenance Type *</label>
-                        <select id="maintenanceType" required>
-                            <option value="">Select Type</option>
-                            <option value="Preventive">Preventive</option>
-                            <option value="Corrective">Corrective</option>
-                            <option value="Predictive">Predictive</option>
-                            <option value="Emergency">Emergency</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="scheduledDate"><i class="fas fa-calendar"></i> Scheduled Date *</label>
-                        <input type="datetime-local" id="scheduledDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="status"><i class="fas fa-info-circle"></i> Status *</label>
-                        <select id="status" required>
-                            <option value="Scheduled">Scheduled</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Completed">Completed</option>
-                            <option value="Overdue">Overdue</option>
-                            <option value="Cancelled">Cancelled</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="priority"><i class="fas fa-flag"></i> Priority *</label>
-                        <select id="priority" required>
-                            <option value="Low">Low</option>
-                            <option value="Medium">Medium</option>
-                            <option value="High">High</option>
-                            <option value="Critical">Critical</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="technician"><i class="fas fa-user"></i> Technician *</label>
-                        <input type="text" id="technician" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="location"><i class="fas fa-map-marker-alt"></i> Location *</label>
-                        <input type="text" id="location" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="cost"><i class="fas fa-dollar-sign"></i> Cost</label>
-                        <input type="number" id="cost" step="0.01" min="0">
-                    </div>
-                    <div class="form-group">
-                        <label for="completedDate"><i class="fas fa-calendar-check"></i> Completed Date</label>
-                        <input type="datetime-local" id="completedDate">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="description"><i class="fas fa-align-left"></i> Description</label>
-                        <textarea id="description" rows="3"></textarea>
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="notes"><i class="fas fa-sticky-note"></i> Notes</label>
-                        <textarea id="notes" rows="3"></textarea>
-                    </div>
+            <form id="ppmForm" onsubmit="addPPMTask(event)">
+                <div class="form-group">
+                    <label>Shift Type</label>
+                    <select id="ppmShiftType" required>
+                        <option value="">Select Shift</option>
+                        <option value="A">Shift A</option>
+                        <option value="B">Shift B</option>
+                        <option value="C">Shift C</option>
+                        <option value="D">Shift D</option>
+                    </select>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Save Record
-                    </button>
+                <div class="form-group">
+                    <label>Task Description</label>
+                    <input type="text" id="ppmDescription" required>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="ppmType" required>
+                        <option value="PM">PM</option>
+                        <option value="CM">CM</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Due Date</label>
+                    <input type="date" id="ppmDueDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="ppmFrequency" required>
+                        <option value="">Select Frequency</option>
+                        <option value="Daily">Daily</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="Monthly">Monthly</option>
+                        <option value="Quarterly">Quarterly</option>
+                        <option value="Yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="ppmStatus" required>
+                        <option value="Not Started">Not Started</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                    <small class="form-hint">💡 When you set status to "Completed", the due date will automatically move to the next period based on frequency</small>
+                </div>
+                <div class="form-group">
+                    <label>Day Shift Assignee</label>
+                    <input type="text" id="ppmDayShift" placeholder="Name...">
+                </div>
+                <div class="form-group">
+                    <label>Night Shift Assignee</label>
+                    <input type="text" id="ppmNightShift" placeholder="Name...">
+                </div>
+                
+                <!-- Photo Upload Section -->
+                <div class="form-group photo-upload-section">
+                    <label>📷 Add Photos (Evidence)</label>
+                    <input type="file" id="photoInput" accept="image/*" multiple onchange="handlePhotoUpload(event)" class="photo-input">
+                    <label for="photoInput" class="photo-upload-btn">
+                        📸 Choose Photos
+                    </label>
+                    <small class="form-hint">You can select multiple photos to upload as evidence for the completed task</small>
+                    <div id="photoPreview" class="photo-preview-container"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-gray" onclick="closeAddPPMModal()">Cancel</button>
+                    <button type="submit" class="btn btn-green">Save Task</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="spinner"></div>
-        <p>Loading...</p>
+    <!-- Add CM Modal -->
+    <div id="addCMModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Corrective Maintenance Task</h2>
+                <span class="close" onclick="closeAddCMModal()">&times;</span>
+            </div>
+            <form id="cmForm" onsubmit="addCMTask(event)">
+                <div class="form-group">
+                    <label>Work Order #</label>
+                    <input type="text" id="cmWorkOrder" placeholder="WO-12345" required>
+                </div>
+                <div class="form-group">
+                    <label>Issue Description</label>
+                    <textarea id="cmDescription" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="cmPriority" required>
+                        <option value="">Select Priority</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" id="cmLocation" placeholder="Runway, Taxiway, Apron, etc." required>
+                </div>
+                <div class="form-group">
+                    <label>Reported By</label>
+                    <input type="text" id="cmReportedBy" placeholder="Name..." required>
+                </div>
+                <div class="form-group">
+                    <label>Date Reported</label>
+                    <input type="date" id="cmDateReported" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="cmStatus" required>
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Pending Parts">Pending Parts</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Assigned To</label>
+                    <input type="text" id="cmAssignedTo" placeholder="Name...">
+                </div>
+                
+                <!-- Photo Upload Section for CM -->
+                <div class="form-group photo-upload-section">
+                    <label>📷 Add Photos (Evidence)</label>
+                    <input type="file" id="cmPhotoInput" accept="image/*" multiple onchange="handleCMPhotoUpload(event)" class="photo-input">
+                    <label for="cmPhotoInput" class="photo-upload-btn">
+                        📸 Choose Photos
+                    </label>
+                    <small class="form-hint">Add photos of the issue, work in progress, or completed repairs</small>
+                    <div id="cmPhotoPreview" class="photo-preview-container"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-gray" onclick="closeAddCMModal()">Cancel</button>
+                    <button type="submit" class="btn btn-blue">Save Task</button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast"></div>
+    <!-- Photo View Modal -->
+    <div id="photoViewModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>📷 Task Photos</h2>
+                <span class="close" onclick="closePhotoViewModal()">&times;</span>
+            </div>
+            <div class="photo-view-content">
+                <div id="photoViewContainer" class="photo-view-grid"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-gray" onclick="closePhotoViewModal()">Close</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- Scripts -->
-    <script src="js/app.js"></script>
+    <!-- Report Generation Modal -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Generate Technical Report</h2>
+                <span class="close" onclick="closeReportModal()">&times;</span>
+            </div>
+            <form onsubmit="event.preventDefault(); generatePDFReport();">
+                <div class="form-group">
+                    <label>Report Period</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="font-size: 12px; color: #666;">From Date</label>
+                            <input type="date" id="reportDateFrom" required style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666;">To Date</label>
+                            <input type="date" id="reportDateTo" required style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                    <p style="margin: 0; font-size: 14px; color: #666;">
+                        <strong>📄 PDF Report will include:</strong><br>
+                        • Summary statistics for the period<br>
+                        • Detailed task list with status colors<br>
+                        • Completed, In Progress, and Overdue counts<br>
+                        • Professional formatting for technical reports
+                    </p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-gray" onclick="closeReportModal()">Cancel</button>
+                    <button type="button" class="btn btn-gray" onclick="exportToCSV()">Export CSV Instead</button>
+                    <button type="submit" class="btn btn-purple">📄 Generate PDF Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase Configuration (Load before app.js) -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Main Application -->
+    <script src="app.js"></script>
 </body>
 </html>

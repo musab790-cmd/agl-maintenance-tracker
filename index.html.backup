@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGL Maintenance Tracker - Professional Equipment Management</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-tools"></i>
+                    <h1>AGL Maintenance Tracker</h1>
+                </div>
+                <nav class="nav-menu">
+                    <button class="nav-btn active" data-view="dashboard">
+                        <i class="fas fa-chart-line"></i> Dashboard
+                    </button>
+                    <button class="nav-btn" data-view="maintenance">
+                        <i class="fas fa-calendar-check"></i> Maintenance
+                    </button>
+                    <button class="nav-btn" data-view="reports">
+                        <i class="fas fa-file-alt"></i> Reports
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            
+            <!-- Dashboard View -->
+            <section id="dashboard-view" class="view active">
+                <div class="view-header">
+                    <h2><i class="fas fa-chart-line"></i> Dashboard Overview</h2>
+                    <button class="btn btn-primary" id="refreshDashboard">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="stats-grid">
+                    <div class="stat-card stat-total">
+                        <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
+                        <div class="stat-content">
+                            <h3 id="totalRecords">0</h3>
+                            <p>Total Records</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-scheduled">
+                        <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+                        <div class="stat-content">
+                            <h3 id="scheduledCount">0</h3>
+                            <p>Scheduled</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-progress">
+                        <div class="stat-icon"><i class="fas fa-spinner"></i></div>
+                        <div class="stat-content">
+                            <h3 id="progressCount">0</h3>
+                            <p>In Progress</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-completed">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-content">
+                            <h3 id="completedCount">0</h3>
+                            <p>Completed</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-overdue">
+                        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="stat-content">
+                            <h3 id="overdueCount">0</h3>
+                            <p>Overdue</p>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-cost">
+                        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+                        <div class="stat-content">
+                            <h3 id="totalCost">$0</h3>
+                            <p>Total Cost</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-pie"></i> Maintenance by Type</h3>
+                        <div class="chart-container">
+                            <canvas id="typeChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-bar"></i> Status Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fas fa-layer-group"></i> Equipment Types</h3>
+                        <div class="chart-container">
+                            <canvas id="equipmentChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-line"></i> Priority Levels</h3>
+                        <div class="chart-container">
+                            <canvas id="priorityChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h3><i class="fas fa-history"></i> Recent Maintenance Activity</h3>
+                    <div id="recentActivityList" class="activity-list"></div>
+                </div>
+            </section>
+
+            <!-- Maintenance View -->
+            <section id="maintenance-view" class="view">
+                <div class="view-header">
+                    <h2><i class="fas fa-calendar-check"></i> Maintenance Records</h2>
+                    <button class="btn btn-primary" id="addRecordBtn">
+                        <i class="fas fa-plus"></i> Add New Record
+                    </button>
+                </div>
+
+                <!-- Filters and Search -->
+                <div class="filters-section">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search equipment, technician, location...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="statusFilter" class="filter-select">
+                            <option value="">All Status</option>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                        <select id="priorityFilter" class="filter-select">
+                            <option value="">All Priority</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                        <select id="typeFilter" class="filter-select">
+                            <option value="">All Types</option>
+                            <option value="Preventive">Preventive</option>
+                            <option value="Corrective">Corrective</option>
+                            <option value="Predictive">Predictive</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                        <select id="equipmentFilter" class="filter-select">
+                            <option value="">All Equipment</option>
+                            <option value="Vehicle">Vehicle</option>
+                            <option value="Machinery">Machinery</option>
+                            <option value="HVAC">HVAC</option>
+                            <option value="Electrical">Electrical</option>
+                            <option value="Plumbing">Plumbing</option>
+                            <option value="IT Equipment">IT Equipment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <button class="btn btn-secondary" id="clearFilters">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Records Table -->
+                <div class="table-container">
+                    <table class="records-table" id="recordsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="equipment_name">Equipment <i class="fas fa-sort"></i></th>
+                                <th data-sort="equipment_type">Type <i class="fas fa-sort"></i></th>
+                                <th data-sort="maintenance_type">Maintenance <i class="fas fa-sort"></i></th>
+                                <th data-sort="scheduled_date">Scheduled <i class="fas fa-sort"></i></th>
+                                <th data-sort="status">Status <i class="fas fa-sort"></i></th>
+                                <th data-sort="priority">Priority <i class="fas fa-sort"></i></th>
+                                <th data-sort="technician">Technician <i class="fas fa-sort"></i></th>
+                                <th data-sort="cost">Cost <i class="fas fa-sort"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTableBody">
+                            <!-- Records will be inserted here dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination" id="pagination">
+                    <button class="btn btn-secondary" id="prevPage" disabled>
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <span id="pageInfo">Page 1 of 1</span>
+                    <button class="btn btn-secondary" id="nextPage" disabled>
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Reports View -->
+            <section id="reports-view" class="view">
+                <div class="view-header">
+                    <h2><i class="fas fa-file-alt"></i> Reports & Export</h2>
+                </div>
+
+                <div class="reports-grid">
+                    <div class="report-card">
+                        <div class="report-icon"><i class="fas fa-file-csv"></i></div>
+                        <h3>Export to CSV</h3>
+                        <p>Download all maintenance records in CSV format</p>
+                        <button class="btn btn-primary" id="exportCSV">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon"><i class="fas fa-file-code"></i></div>
+                        <h3>Export to JSON</h3>
+                        <p>Download data in JSON format for analysis</p>
+                        <button class="btn btn-primary" id="exportJSON">
+                            <i class="fas fa-download"></i> Export JSON
+                        </button>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon"><i class="fas fa-print"></i></div>
+                        <h3>Print Report</h3>
+                        <p>Generate a printable maintenance report</p>
+                        <button class="btn btn-primary" id="printReport">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+                    <div class="report-card">
+                        <div class="report-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <h3>Monthly Summary</h3>
+                        <p>View detailed monthly maintenance summary</p>
+                        <button class="btn btn-primary" id="monthlySummary">
+                            <i class="fas fa-eye"></i> View Summary
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="summary-section">
+                    <h3><i class="fas fa-chart-bar"></i> Maintenance Summary</h3>
+                    <div id="summaryContent" class="summary-content">
+                        <!-- Summary will be generated here -->
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Modal for Add/Edit Record -->
+    <div id="recordModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle"><i class="fas fa-plus"></i> Add Maintenance Record</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <form id="recordForm" class="modal-body">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="equipmentName"><i class="fas fa-cog"></i> Equipment Name *</label>
+                        <input type="text" id="equipmentName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="equipmentType"><i class="fas fa-layer-group"></i> Equipment Type *</label>
+                        <select id="equipmentType" required>
+                            <option value="">Select Type</option>
+                            <option value="Vehicle">Vehicle</option>
+                            <option value="Machinery">Machinery</option>
+                            <option value="HVAC">HVAC</option>
+                            <option value="Electrical">Electrical</option>
+                            <option value="Plumbing">Plumbing</option>
+                            <option value="IT Equipment">IT Equipment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenanceType"><i class="fas fa-wrench"></i> Maintenance Type *</label>
+                        <select id="maintenanceType" required>
+                            <option value="">Select Type</option>
+                            <option value="Preventive">Preventive</option>
+                            <option value="Corrective">Corrective</option>
+                            <option value="Predictive">Predictive</option>
+                            <option value="Emergency">Emergency</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduledDate"><i class="fas fa-calendar"></i> Scheduled Date *</label>
+                        <input type="datetime-local" id="scheduledDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="status"><i class="fas fa-info-circle"></i> Status *</label>
+                        <select id="status" required>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Overdue">Overdue</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="priority"><i class="fas fa-flag"></i> Priority *</label>
+                        <select id="priority" required>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="technician"><i class="fas fa-user"></i> Technician *</label>
+                        <input type="text" id="technician" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="location"><i class="fas fa-map-marker-alt"></i> Location *</label>
+                        <input type="text" id="location" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="cost"><i class="fas fa-dollar-sign"></i> Cost</label>
+                        <input type="number" id="cost" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="completedDate"><i class="fas fa-calendar-check"></i> Completed Date</label>
+                        <input type="datetime-local" id="completedDate">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="description"><i class="fas fa-align-left"></i> Description</label>
+                        <textarea id="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="notes"><i class="fas fa-sticky-note"></i> Notes</label>
+                        <textarea id="notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+</body>
+</html>
