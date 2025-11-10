@@ -1075,35 +1075,49 @@ function toggleReportTypeFields() {
     const missionTimeFields = document.getElementById('missionTimeFields');
     const reportInfoBox = document.getElementById('reportInfoBox');
     const liveReportBtn = document.getElementById('liveReportBtn');
+    const missionPDFBtn = document.getElementById('missionPDFBtn');
+    const standardPDFBtn = document.getElementById('standardPDFBtn');
     
     if (reportType === 'mission-time') {
         dateRangeFields.style.display = 'none';
         missionTimeFields.style.display = 'block';
         
-        // Show live report button for mission time
+        // Show mission time specific buttons
         if (liveReportBtn) {
             liveReportBtn.style.display = 'inline-block';
+        }
+        if (missionPDFBtn) {
+            missionPDFBtn.style.display = 'inline-block';
+        }
+        if (standardPDFBtn) {
+            standardPDFBtn.style.display = 'none';
         }
         
         // Update info box
         reportInfoBox.innerHTML = `
             <p style="margin: 0; font-size: 14px; color: #666;">
-                <strong>🚁 Mission Time Report will include:</strong><br>
-                • Tasks updated during mission time period<br>
-                • Filtered by last update timestamp (updatedAt)<br>
+                <strong>🚁 Mission Time Report Options:</strong><br>
+                • <strong>View Live Report:</strong> Interactive preview with live stats<br>
+                • <strong>Generate Mission PDF:</strong> Direct Firebase query with timestamp filtering<br>
+                • Tasks filtered by last update timestamp (updatedAt)<br>
                 • Both PPM and CM tasks included<br>
                 • Photo evidence with timestamps<br>
-                • Mission activity summary<br>
-                • <strong>💡 Use "View Live Report" for interactive preview</strong>
+                • Mission duration calculation
             </p>
         `;
     } else {
         dateRangeFields.style.display = 'block';
         missionTimeFields.style.display = 'none';
         
-        // Hide live report button for date range
+        // Show standard PDF button, hide mission time buttons
         if (liveReportBtn) {
             liveReportBtn.style.display = 'none';
+        }
+        if (missionPDFBtn) {
+            missionPDFBtn.style.display = 'none';
+        }
+        if (standardPDFBtn) {
+            standardPDFBtn.style.display = 'inline-block';
         }
         
         // Restore original info box
@@ -1155,79 +1169,50 @@ function closeReportModal() {
 async function generatePDFReport() {
     const reportType = document.getElementById('reportType').value;
     
-    let filteredPPMTasks, filteredCMTasks, reportTitle, reportPeriod;
-    
     if (reportType === 'mission-time') {
-        // Mission Time Report
-        const missionStart = document.getElementById('missionStartTime').value;
-        const missionEnd = document.getElementById('missionEndTime').value;
-        
-        if (!missionStart || !missionEnd) {
-            showNotification('Please enter valid mission start and end times', 'error');
-            return;
-        }
-        
-        const missionStartTimestamp = new Date(missionStart).getTime();
-        const missionEndTimestamp = new Date(missionEnd).getTime();
-        
-        if (missionStartTimestamp > missionEndTimestamp) {
-            showNotification('Mission start time must be before end time', 'error');
-            return;
-        }
-        
-        // Filter tasks by updatedAt timestamp
-        filteredPPMTasks = filterTasksByMissionTime(ppmTasks, missionStartTimestamp, missionEndTimestamp);
-        filteredCMTasks = filterTasksByMissionTime(cmTasks, missionStartTimestamp, missionEndTimestamp);
-        
-        reportTitle = 'MISSION TIME REPORT';
-        reportPeriod = `${formatDateTime(missionStart)} to ${formatDateTime(missionEnd)}`;
-        
-        console.log(`🚁 Mission Time Filter: ${filteredPPMTasks.length} PPM, ${filteredCMTasks.length} CM tasks`);
-        
-    } else {
-        // Date Range Report (original behavior)
-        const dateFrom = document.getElementById('reportDateFrom').value;
-        const dateTo = document.getElementById('reportDateTo').value;
-        
-        if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
-            showNotification('Please enter valid dates', 'error');
-            return;
-        }
-        
-        if (dateFrom > dateTo) {
-            showNotification('Start date must be before end date', 'error');
-            return;
-        }
-        
-        // Filter PPM tasks by date range
-        filteredPPMTasks = ppmTasks.filter(task => {
-            return task.dueDate >= dateFrom && task.dueDate <= dateTo;
-        });
-        
-        // Filter CM tasks by date range (using dateReported)
-        filteredCMTasks = cmTasks.filter(task => {
-            return task.dateReported >= dateFrom && task.dateReported <= dateTo;
-        });
-        
-        reportTitle = 'MAINTENANCE TRACKER REPORT';
-        reportPeriod = `${formatDate(dateFrom)} to ${formatDate(dateTo)}`;
+        showNotification('For Mission Time Reports, use the "Generate Mission PDF" button', 'info');
+        return;
     }
     
-    // ✅ Check if any tasks found
+    // Date Range Report
+    const dateFrom = document.getElementById('reportDateFrom').value;
+    const dateTo = document.getElementById('reportDateTo').value;
+    
+    if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
+        showNotification('Please enter valid dates', 'error');
+        return;
+    }
+    
+    if (dateFrom > dateTo) {
+        showNotification('Start date must be before end date', 'error');
+        return;
+    }
+    
+    // Filter PPM tasks by date range
+    const filteredPPMTasks = ppmTasks.filter(task => {
+        return task.dueDate >= dateFrom && task.dueDate <= dateTo;
+    });
+    
+    // Filter CM tasks by date range (using dateReported)
+    const filteredCMTasks = cmTasks.filter(task => {
+        return task.dateReported >= dateFrom && task.dateReported <= dateTo;
+    });
+    
+    // Check if any tasks found
     const totalTasks = filteredPPMTasks.length + filteredCMTasks.length;
     if (totalTasks === 0) {
-        showNotification(`No tasks found for the selected ${reportType === 'mission-time' ? 'mission time' : 'date range'}. Try a different period.`, 'info');
+        showNotification('No tasks found for the selected date range. Try a different period.', 'info');
         return;
     }
     
     // Show generating message
-    showNotification(`Generating ${reportType === 'mission-time' ? 'Mission Time' : ''} PDF for ${filteredPPMTasks.length} PPM and ${filteredCMTasks.length} CM task(s)...`, 'info');
+    showNotification(`Generating AGL Maintenance Report for ${filteredPPMTasks.length} PPM and ${filteredCMTasks.length} CM task(s)...`, 'info');
     
-    // Generate PDF using jsPDF
+    // Generate PDF using AGL style
     try {
-        await generatePDFDocument(filteredPPMTasks, filteredCMTasks, reportPeriod, reportTitle);
-        showNotification('PDF report generated successfully!', 'success');
-        closeReportModal();
+        const startDate = new Date(dateFrom);
+        const endDate = new Date(dateTo);
+        await generateAGLStylePDF(filteredPPMTasks, filteredCMTasks, startDate, endDate);
     } catch (error) {
         console.error('PDF generation error:', error);
         showNotification('Error generating PDF report: ' + error.message, 'error');
@@ -1329,6 +1314,14 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
         ...cmTasks.map(t => ({...t, type: 'CM'}))
     ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     
+    // Calculate mission duration
+    const missionStartTime = new Date(missionStart).getTime();
+    const missionEndTime = new Date(missionEnd).getTime();
+    const duration = missionEndTime - missionStartTime; // duration in milliseconds
+    const durationHours = Math.floor(duration / (1000 * 60 * 60));
+    const durationMinutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+    const durationText = durationHours > 0 ? `${durationHours}h ${durationMinutes}m` : `${durationMinutes}m`;
+    
     // Create report container
     const reportHTML = `
         <div style="max-width: 900px; margin: 20px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
@@ -1339,7 +1332,7 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
                 </p>
             </div>
             
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px;">
                 <div style="background: #e3f2fd; padding: 15px; border-radius: 6px; text-align: center;">
                     <div style="font-size: 32px; font-weight: bold; color: #1976d2;">${allTasks.length}</div>
                     <div style="color: #666; font-size: 14px;">Total Tasks</div>
@@ -1351,6 +1344,10 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
                 <div style="background: #fff3e0; padding: 15px; border-radius: 6px; text-align: center;">
                     <div style="font-size: 32px; font-weight: bold; color: #f57c00;">${cmTasks.length}</div>
                     <div style="color: #666; font-size: 14px;">CM Tasks</div>
+                </div>
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #7b1fa2;">${durationText}</div>
+                    <div style="color: #666; font-size: 14px;">Duration</div>
                 </div>
             </div>
             
@@ -1398,6 +1395,422 @@ function renderMissionReportInModal(ppmTasks, cmTasks, missionStart, missionEnd)
     reportWindow.innerHTML = reportHTML;
     
     // Close modal
+    closeReportModal();
+}
+
+// 🆕 Generate Mission PDF Report with jsPDF
+async function generateMissionPDFReport() {
+    const reportType = document.getElementById('reportType').value;
+    
+    if (reportType !== 'mission-time') {
+        showNotification('Please select Mission Time Report type', 'error');
+        return;
+    }
+    
+    const missionStartInput = document.getElementById('missionStartTime').value;
+    const missionEndInput = document.getElementById('missionEndTime').value;
+    
+    if (!missionStartInput || !missionEndInput) {
+        showNotification('Please select both mission start and end times', 'error');
+        return;
+    }
+    
+    const missionStart = new Date(missionStartInput);
+    const missionEnd = new Date(missionEndInput);
+    
+    if (missionStart > missionEnd) {
+        showNotification('Mission start time must be before end time', 'error');
+        return;
+    }
+    
+    showNotification('Generating AGL Maintenance Report...', 'info');
+    
+    try {
+        // Load jsPDF library if not loaded
+        if (typeof window.jspdf === 'undefined') {
+            await loadJsPDF();
+        }
+        
+        const { jsPDF } = window.jspdf;
+        
+        // Convert to ISO strings for Firebase query
+        const startISO = missionStart.toISOString();
+        const endISO = missionEnd.toISOString();
+        
+        // Fetch tasks directly from Firebase
+        const ppmSnapshot = await firebase.database().ref('/ppmTasks')
+            .orderByChild('updatedAt')
+            .startAt(startISO)
+            .endAt(endISO)
+            .once('value');
+        
+        const cmSnapshot = await firebase.database().ref('/cmTasks')
+            .orderByChild('updatedAt')
+            .startAt(startISO)
+            .endAt(endISO)
+            .once('value');
+        
+        const ppmTasks = [];
+        const cmTasks = [];
+        
+        // Collect PPM tasks
+        ppmSnapshot.forEach(child => {
+            const task = child.val();
+            if (task.updatedAt) {
+                const taskTime = new Date(task.updatedAt).getTime();
+                if (taskTime >= missionStart.getTime() && taskTime <= missionEnd.getTime()) {
+                    ppmTasks.push(task);
+                }
+            }
+        });
+        
+        // Collect CM tasks
+        cmSnapshot.forEach(child => {
+            const task = child.val();
+            if (task.updatedAt) {
+                const taskTime = new Date(task.updatedAt).getTime();
+                if (taskTime >= missionStart.getTime() && taskTime <= missionEnd.getTime()) {
+                    cmTasks.push(task);
+                }
+            }
+        });
+        
+        // Sort by update time
+        ppmTasks.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+        cmTasks.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+        
+        // Generate PDF with professional AGL style
+        await generateAGLStylePDF(ppmTasks, cmTasks, missionStart, missionEnd);
+        
+    } catch (error) {
+        console.error('Mission PDF generation error:', error);
+        showNotification('Error generating report: ' + error.message, 'error');
+    }
+}
+
+// Generate AGL-style professional PDF report with day/night shift separation
+async function generateAGLStylePDF(ppmTasks, cmTasks, startDate, endDate) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 15;
+    const contentWidth = pageWidth - (margin * 2);
+    const timeColumnWidth = 20;
+    const remarkColumnStart = margin + timeColumnWidth;
+    const remarkColumnWidth = contentWidth - timeColumnWidth - 5;
+    
+    // Format date for header
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateStr = startDate.toLocaleDateString('en-US', options);
+    
+    // Separate tasks into day shift (06:00-17:59) and night shift (18:00-05:59)
+    const allTasks = [
+        ...ppmTasks.map(t => ({ ...t, type: 'PPM' })),
+        ...cmTasks.map(t => ({ ...t, type: 'CM' }))
+    ];
+    
+    const dayShiftTasks = [];
+    const nightShiftTasks = [];
+    
+    allTasks.forEach(task => {
+        if (task.updatedAt) {
+            const taskTime = new Date(task.updatedAt);
+            const hour = taskTime.getHours();
+            
+            // Day shift: 06:00 - 17:59, Night shift: 18:00 - 05:59
+            if (hour >= 6 && hour < 18) {
+                dayShiftTasks.push(task);
+            } else {
+                nightShiftTasks.push(task);
+            }
+        }
+    });
+    
+    // Sort tasks chronologically within each shift
+    dayShiftTasks.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+    nightShiftTasks.sort((a, b) => new Date(a.updatedAt) - new Date(b.updatedAt));
+    
+    let currentPage = 1;
+    let y = margin;
+    
+    // Function to add professional header
+    function addMainHeader() {
+        // Main title - bold and centered
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('AGL System Daily Maintenance Report', pageWidth / 2, y, { align: 'center' });
+        
+        y += 8;
+        
+        // Date - centered
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text(dateStr, pageWidth / 2, y, { align: 'center' });
+        
+        y += 10;
+    }
+    
+    // Function to add shift header
+    function addShiftHeader(shiftName, taskCount) {
+        // Add spacing before shift section
+        if (y > margin + 25) {
+            y += 8;
+        }
+        
+        // Shift name with background
+        doc.setFillColor(245, 245, 245);
+        doc.rect(margin - 2, y - 5, contentWidth + 4, 10, 'F');
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(shiftName, margin, y);
+        
+        y += 8;
+        
+        // Table header
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('TIME', margin, y);
+        doc.text('REMARK', remarkColumnStart, y);
+        
+        y += 1;
+        
+        // Line under header
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, pageWidth - margin, y);
+        
+        y += 6;
+        
+        // Reset
+        doc.setTextColor(0, 0, 0);
+        doc.setDrawColor(0, 0, 0);
+        doc.setFont('helvetica', 'normal');
+    }
+    
+    // Function to check if we need a new page
+    function checkNewPage(spaceNeeded = 20) {
+        if (y + spaceNeeded > pageHeight - 35) {
+            doc.addPage();
+            currentPage++;
+            y = margin + 10;
+        }
+    }
+    
+    // Function to split long text into lines
+    function splitText(text, maxWidth) {
+        return doc.splitTextToSize(text, maxWidth);
+    }
+    
+    // Function to render a single task with photo placeholder
+    function renderTask(task, taskNumber) {
+        checkNewPage(35); // Ensure space for task + photo
+        
+        const startY = y;
+        
+        // Build task description
+        let taskDesc = '';
+        
+        if (task.type === 'PPM') {
+            taskDesc = task.description || 'PPM task';
+            if (task.equipmentType) {
+                taskDesc = `${task.equipmentType}: ${taskDesc}`;
+            }
+            if (task.location) {
+                taskDesc += ` at ${task.location}`;
+            }
+            if (task.frequency) {
+                taskDesc += ` (${task.frequency})`;
+            }
+        } else {
+            taskDesc = task.description || 'CM task';
+            if (task.workOrder) {
+                taskDesc = `WO-${task.workOrder}: ${taskDesc}`;
+            }
+            if (task.location) {
+                taskDesc += ` at ${task.location}`;
+            }
+            if (task.priority && (task.priority === 'High' || task.priority === 'Critical')) {
+                taskDesc += ` (Priority: ${task.priority})`;
+            }
+        }
+        
+        // Get time
+        let timeStr = '';
+        if (task.updatedAt) {
+            const taskTime = new Date(task.updatedAt);
+            timeStr = taskTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+        
+        // Render task number and description
+        const fullText = `${taskNumber}. ${taskDesc}`;
+        const lines = splitText(fullText, remarkColumnWidth - 30); // Leave space for photo
+        
+        // Print time
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        if (timeStr) {
+            doc.text(timeStr, margin, y);
+        }
+        
+        // Print description lines
+        doc.setFontSize(9);
+        lines.forEach((line, index) => {
+            if (index > 0) {
+                y += 4;
+                checkNewPage(4);
+            }
+            doc.text(line, remarkColumnStart, y);
+            if (index === 0) y += 4;
+        });
+        
+        // Add photo placeholder if photos exist
+        if (task.photos && task.photos.length > 0) {
+            y += 2;
+            checkNewPage(20);
+            
+            // Draw photo placeholder box
+            const photoBoxX = remarkColumnStart;
+            const photoBoxY = y;
+            const photoBoxWidth = 25;
+            const photoBoxHeight = 18;
+            
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.rect(photoBoxX, photoBoxY, photoBoxWidth, photoBoxHeight);
+            
+            // Add photo icon/text
+            doc.setFontSize(7);
+            doc.setTextColor(150, 150, 150);
+            doc.text('PHOTO', photoBoxX + photoBoxWidth/2, photoBoxY + photoBoxHeight/2 - 2, { align: 'center' });
+            doc.text(`(${task.photos.length})`, photoBoxX + photoBoxWidth/2, photoBoxY + photoBoxHeight/2 + 2, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+            
+            // Add assignee/personnel info next to photo
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            if (task.type === 'PPM' && (task.dayShift || task.nightShift)) {
+                const assignee = task.dayShift || task.nightShift;
+                doc.text(`Personnel: ${assignee}`, photoBoxX + photoBoxWidth + 3, photoBoxY + 4);
+            } else if (task.type === 'CM' && task.assignedTo) {
+                doc.text(`Technician: ${task.assignedTo}`, photoBoxX + photoBoxWidth + 3, photoBoxY + 4);
+            }
+            if (task.reportedBy && task.type === 'CM') {
+                doc.text(`Reported by: ${task.reportedBy}`, photoBoxX + photoBoxWidth + 3, photoBoxY + 8);
+            }
+            doc.setFont('helvetica', 'normal');
+            
+            y += photoBoxHeight + 2;
+        } else {
+            // Just add personnel info without photo
+            if (task.type === 'PPM' && (task.dayShift || task.nightShift)) {
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'italic');
+                const assignee = task.dayShift || task.nightShift;
+                doc.text(`Personnel: ${assignee}`, remarkColumnStart, y);
+                doc.setFont('helvetica', 'normal');
+                y += 4;
+            } else if (task.type === 'CM' && task.assignedTo) {
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'italic');
+                doc.text(`Technician: ${task.assignedTo}`, remarkColumnStart, y);
+                if (task.reportedBy) {
+                    doc.text(`, Reported by: ${task.reportedBy}`, remarkColumnStart + 35, y);
+                }
+                doc.setFont('helvetica', 'normal');
+                y += 4;
+            }
+        }
+        
+        y += 3; // Space between tasks
+    }
+    
+    // Add main header
+    addMainHeader();
+    
+    // Render Day Shift section
+    let taskNumber = 1;
+    
+    if (dayShiftTasks.length > 0) {
+        addShiftHeader('Day shift', dayShiftTasks.length);
+        
+        dayShiftTasks.forEach(task => {
+            renderTask(task, taskNumber);
+            taskNumber++;
+        });
+    }
+    
+    // Render Night Shift section
+    if (nightShiftTasks.length > 0) {
+        // Reset task numbering for night shift
+        taskNumber = 1;
+        
+        addShiftHeader('Night shift', nightShiftTasks.length);
+        
+        nightShiftTasks.forEach(task => {
+            renderTask(task, taskNumber);
+            taskNumber++;
+        });
+    }
+    
+    // If no tasks at all
+    if (dayShiftTasks.length === 0 && nightShiftTasks.length === 0) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(120, 120, 120);
+        doc.text('No maintenance activities recorded during this period.', pageWidth / 2, y + 10, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+    }
+    
+    // Add simple footer
+    const totalPages = doc.internal.getNumberOfPages();
+    
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        doc.setPage(pageNum);
+        
+        const footerY = pageHeight - 10;
+        
+        // Footer line
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(margin, footerY - 3, pageWidth - margin, footerY - 3);
+        
+        // Footer content
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        
+        const generatedDate = new Date();
+        const dateFormatted = generatedDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+        
+        doc.text(`Generated: ${dateFormatted}`, margin, footerY);
+        doc.text(`Period: ${startDate.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false})} - ${endDate.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false})}`, pageWidth / 2, footerY, { align: 'center' });
+        doc.text(`Page ${pageNum}/${totalPages}`, pageWidth - margin, footerY, { align: 'right' });
+    }
+    
+    // Reset
+    doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(0, 0, 0);
+    
+    // Generate filename
+    const reportDate = startDate.toISOString().split('T')[0];
+    const fileName = `AGL_Maintenance_Report_${reportDate.replace(/-/g, '')}.pdf`;
+    
+    // Save PDF
+    doc.save(fileName);
+    
+    showNotification(`Report generated: ${fileName}`, 'success');
     closeReportModal();
 }
 
