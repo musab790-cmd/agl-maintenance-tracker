@@ -322,19 +322,46 @@
             </div>
             <form onsubmit="event.preventDefault(); generatePDFReport();">
                 <div class="form-group">
+                    <label>Report Type</label>
+                    <select id="reportType" onchange="toggleReportTypeFields()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="date-range">📅 Date Range Report</option>
+                        <option value="mission-time">🚁 Mission Time Report</option>
+                    </select>
+                </div>
+                
+                <!-- Date Range Fields (Default) -->
+                <div id="dateRangeFields" class="form-group">
                     <label>Report Period</label>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div>
                             <label style="font-size: 12px; color: #666;">From Date</label>
-                            <input type="date" id="reportDateFrom" required style="width: 100%;">
+                            <input type="date" id="reportDateFrom" style="width: 100%;">
                         </div>
                         <div>
                             <label style="font-size: 12px; color: #666;">To Date</label>
-                            <input type="date" id="reportDateTo" required style="width: 100%;">
+                            <input type="date" id="reportDateTo" style="width: 100%;">
                         </div>
                     </div>
                 </div>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                
+                <!-- Mission Time Fields (Hidden by default) -->
+                <div id="missionTimeFields" class="form-group" style="display: none;">
+                    <label>Mission Time Period</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <label style="font-size: 12px; color: #666;">Mission Start</label>
+                            <input type="datetime-local" id="missionStartTime" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666;">Mission End</label>
+                            <input type="datetime-local" id="missionEndTime" style="width: 100%;">
+                        </div>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 12px; color: #666;">
+                        💡 Tip: Mission time reports filter tasks by their last update timestamp (updatedAt)
+                    </p>
+                </div>
+                <div id="reportInfoBox" style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin: 15px 0;">
                     <p style="margin: 0; font-size: 14px; color: #666;">
                         <strong>📄 PDF Report will include:</strong><br>
                         • Summary statistics for the period<br>

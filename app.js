@@ -911,7 +911,8 @@ function addPPMTask(event) {
                 dayShift: document.getElementById('ppmDayShift').value,
                 nightShift: document.getElementById('ppmNightShift').value,
                 photos: uploadedPhotos,
-                lastCompleted: status === 'Completed' ? new Date().toISOString() : ppmTasks[taskIndex].lastCompleted
+                lastCompleted: status === 'Completed' ? new Date().toISOString() : ppmTasks[taskIndex].lastCompleted,
+                updatedAt: new Date().toISOString()
             };
             showNotification('Task updated successfully!', 'success');
         }
@@ -927,7 +928,9 @@ function addPPMTask(event) {
             dayShift: document.getElementById('ppmDayShift').value,
             nightShift: document.getElementById('ppmNightShift').value,
             photos: uploadedPhotos,
-            lastCompleted: status === 'Completed' ? new Date().toISOString() : null
+            lastCompleted: status === 'Completed' ? new Date().toISOString() : null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
         
         ppmTasks.unshift(newTask);
@@ -967,7 +970,8 @@ function addCMTask(event) {
                 location: document.getElementById('cmLocation').value,
                 photos: uploadedCMPhotos,
                 createdDate: cmTasks[taskIndex].createdDate,
-                lastModified: new Date().toISOString()
+                lastModified: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
             };
             showNotification('CM task updated successfully!', 'success');
         }
@@ -985,7 +989,8 @@ function addCMTask(event) {
             priority: document.getElementById('cmPriority').value,
             location: document.getElementById('cmLocation').value,
             photos: uploadedCMPhotos,
-            createdDate: new Date().toISOString()
+            createdDate: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
         };
         
         cmTasks.unshift(cmTask);
@@ -1049,12 +1054,67 @@ function generateReport() {
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
-    // Default to current month
+    // Default to current month for date range
     document.getElementById('reportDateFrom').value = firstDayOfMonth.toISOString().split('T')[0];
     document.getElementById('reportDateTo').value = lastDayOfMonth.toISOString().split('T')[0];
     
+    // Set default mission time (last 2 hours)
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+    document.getElementById('missionStartTime').value = formatDateTimeLocal(twoHoursAgo);
+    document.getElementById('missionEndTime').value = formatDateTimeLocal(now);
+    
     // Show task count for selected range
     updateReportPreview();
+}
+
+// Toggle between date range and mission time report fields
+function toggleReportTypeFields() {
+    const reportType = document.getElementById('reportType').value;
+    const dateRangeFields = document.getElementById('dateRangeFields');
+    const missionTimeFields = document.getElementById('missionTimeFields');
+    const reportInfoBox = document.getElementById('reportInfoBox');
+    
+    if (reportType === 'mission-time') {
+        dateRangeFields.style.display = 'none';
+        missionTimeFields.style.display = 'block';
+        
+        // Update info box
+        reportInfoBox.innerHTML = `
+            <p style="margin: 0; font-size: 14px; color: #666;">
+                <strong>🚁 Mission Time Report will include:</strong><br>
+                • Tasks updated during mission time period<br>
+                • Filtered by last update timestamp (updatedAt)<br>
+                • Both PPM and CM tasks included<br>
+                • Photo evidence with timestamps<br>
+                • Mission activity summary
+            </p>
+        `;
+    } else {
+        dateRangeFields.style.display = 'block';
+        missionTimeFields.style.display = 'none';
+        
+        // Restore original info box
+        reportInfoBox.innerHTML = `
+            <p style="margin: 0; font-size: 14px; color: #666;">
+                <strong>📄 PDF Report will include:</strong><br>
+                • Summary statistics for the period<br>
+                • Detailed task list with status colors<br>
+                • Completed, In Progress, and Overdue counts<br>
+                • Professional formatting for technical reports
+            </p>
+        `;
+    }
+}
+
+// Helper function to format datetime for datetime-local input
+function formatDateTimeLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 // ✅ NEW: Update Report Preview
@@ -1079,44 +1139,81 @@ function closeReportModal() {
     document.getElementById('reportModal').style.display = 'none';
 }
 
-// ✅ FIXED: Generate PDF Report (removed premature notification)
+// ✅ ENHANCED: Generate PDF Report (supports mission time filtering)
 async function generatePDFReport() {
-    const dateFrom = document.getElementById('reportDateFrom').value;
-    const dateTo = document.getElementById('reportDateTo').value;
+    const reportType = document.getElementById('reportType').value;
     
-    if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
-        showNotification('Please enter valid dates', 'error');
-        return;
+    let filteredPPMTasks, filteredCMTasks, reportTitle, reportPeriod;
+    
+    if (reportType === 'mission-time') {
+        // Mission Time Report
+        const missionStart = document.getElementById('missionStartTime').value;
+        const missionEnd = document.getElementById('missionEndTime').value;
+        
+        if (!missionStart || !missionEnd) {
+            showNotification('Please enter valid mission start and end times', 'error');
+            return;
+        }
+        
+        const missionStartTimestamp = new Date(missionStart).getTime();
+        const missionEndTimestamp = new Date(missionEnd).getTime();
+        
+        if (missionStartTimestamp > missionEndTimestamp) {
+            showNotification('Mission start time must be before end time', 'error');
+            return;
+        }
+        
+        // Filter tasks by updatedAt timestamp
+        filteredPPMTasks = filterTasksByMissionTime(ppmTasks, missionStartTimestamp, missionEndTimestamp);
+        filteredCMTasks = filterTasksByMissionTime(cmTasks, missionStartTimestamp, missionEndTimestamp);
+        
+        reportTitle = 'MISSION TIME REPORT';
+        reportPeriod = `${formatDateTime(missionStart)} to ${formatDateTime(missionEnd)}`;
+        
+        console.log(`🚁 Mission Time Filter: ${filteredPPMTasks.length} PPM, ${filteredCMTasks.length} CM tasks`);
+        
+    } else {
+        // Date Range Report (original behavior)
+        const dateFrom = document.getElementById('reportDateFrom').value;
+        const dateTo = document.getElementById('reportDateTo').value;
+        
+        if (!isValidDate(dateFrom) || !isValidDate(dateTo)) {
+            showNotification('Please enter valid dates', 'error');
+            return;
+        }
+        
+        if (dateFrom > dateTo) {
+            showNotification('Start date must be before end date', 'error');
+            return;
+        }
+        
+        // Filter PPM tasks by date range
+        filteredPPMTasks = ppmTasks.filter(task => {
+            return task.dueDate >= dateFrom && task.dueDate <= dateTo;
+        });
+        
+        // Filter CM tasks by date range (using dateReported)
+        filteredCMTasks = cmTasks.filter(task => {
+            return task.dateReported >= dateFrom && task.dateReported <= dateTo;
+        });
+        
+        reportTitle = 'MAINTENANCE TRACKER REPORT';
+        reportPeriod = `${formatDate(dateFrom)} to ${formatDate(dateTo)}`;
     }
-    
-    if (dateFrom > dateTo) {
-        showNotification('Start date must be before end date', 'error');
-        return;
-    }
-    
-    // Filter PPM tasks by date range
-    const filteredPPMTasks = ppmTasks.filter(task => {
-        return task.dueDate >= dateFrom && task.dueDate <= dateTo;
-    });
-    
-    // Filter CM tasks by date range (using dateReported)
-    const filteredCMTasks = cmTasks.filter(task => {
-        return task.dateReported >= dateFrom && task.dateReported <= dateTo;
-    });
     
     // ✅ Check if any tasks found
     const totalTasks = filteredPPMTasks.length + filteredCMTasks.length;
     if (totalTasks === 0) {
-        showNotification(`No tasks found between ${formatDate(dateFrom)} and ${formatDate(dateTo)}. Try a wider date range.`, 'info');
+        showNotification(`No tasks found for the selected ${reportType === 'mission-time' ? 'mission time' : 'date range'}. Try a different period.`, 'info');
         return;
     }
     
     // Show generating message
-    showNotification(`Generating PDF for ${filteredPPMTasks.length} PPM and ${filteredCMTasks.length} CM task(s)...`, 'info');
+    showNotification(`Generating ${reportType === 'mission-time' ? 'Mission Time' : ''} PDF for ${filteredPPMTasks.length} PPM and ${filteredCMTasks.length} CM task(s)...`, 'info');
     
     // Generate PDF using jsPDF
     try {
-        await generatePDFDocument(filteredPPMTasks, filteredCMTasks, dateFrom, dateTo);
+        await generatePDFDocument(filteredPPMTasks, filteredCMTasks, reportPeriod, reportTitle);
         showNotification('PDF report generated successfully!', 'success');
         closeReportModal();
     } catch (error) {
@@ -1125,8 +1222,35 @@ async function generatePDFReport() {
     }
 }
 
+// Filter tasks by mission time (using updatedAt timestamp)
+function filterTasksByMissionTime(tasks, missionStart, missionEnd) {
+    return tasks.filter(task => {
+        // Check if task has updatedAt timestamp
+        if (!task.updatedAt) {
+            console.warn('Task missing updatedAt:', task);
+            return false;
+        }
+        
+        const taskUpdateTime = new Date(task.updatedAt).getTime();
+        return taskUpdateTime >= missionStart && taskUpdateTime <= missionEnd;
+    });
+}
+
+// Format datetime for display
+function formatDateTime(datetimeString) {
+    const date = new Date(datetimeString);
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
 // Generate PDF Document with both PPM and CM tasks and photos
-async function generatePDFDocument(ppmTasks, cmTasks, dateFrom, dateTo) {
+async function generatePDFDocument(ppmTasks, cmTasks, reportPeriod, reportTitle = 'MAINTENANCE TRACKER REPORT') {
     // Load jsPDF library if not loaded
     if (typeof window.jspdf === 'undefined') {
         await loadJsPDF();
@@ -1146,13 +1270,13 @@ async function generatePDFDocument(ppmTasks, cmTasks, dateFrom, dateTo) {
     yPos += 8;
     
     doc.setFontSize(16);
-    doc.text('MAINTENANCE TRACKER REPORT', pageWidth / 2, yPos, { align: 'center' });
+    doc.text(reportTitle, pageWidth / 2, yPos, { align: 'center' });
     yPos += 15;
     
     // Report Info
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Report Period: ${formatDate(dateFrom)} to ${formatDate(dateTo)}`, 14, yPos);
+    doc.text(`Report Period: ${reportPeriod}`, 14, yPos);
     yPos += 6;
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, yPos);
     yPos += 6;
