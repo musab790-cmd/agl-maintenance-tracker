@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Report - AGL Maintenance Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <style>
+        .mission-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .mission-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .mission-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 32px;
+        }
+        
+        .mission-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        
+        .mission-controls {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .input-group input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+        
+        .quick-presets {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .preset-btn {
+            background: #f0f0f0;
+            border: 1px solid #d0d0d0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .preset-btn:hover {
+            background: #e0e0e0;
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        .report-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .task-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .task-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .task-card h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        
+        .task-card p {
+            margin: 0 0 10px 0;
+            color: #555;
+            line-height: 1.6;
+        }
+        
+        .task-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .task-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .task-type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-ppm {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .badge-cm {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .no-results-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #667eea;
+        }
+        
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            text-decoration: none;
+            opacity: 0.9;
+            transition: opacity 0.2s;
+        }
+        
+        .back-link:hover {
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .time-inputs {
+                grid-template-columns: 1fr;
+            }
+            
+            .generate-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mission-container">
+        <!-- Header -->
+        <div class="mission-header">
+            <a href="index.html" class="back-link">← Back to Main App</a>
+            <h1>🚁 Mission Time Report</h1>
+            <p>Filter and view tasks updated during specific mission time windows</p>
+        </div>
+        
+        <!-- Mission Controls -->
+        <div class="mission-controls">
+            <div class="time-inputs">
+                <div class="input-group">
+                    <label>🕐 Mission Start:</label>
+                    <input type="datetime-local" id="missionStart">
+                </div>
+                
+                <div class="input-group">
+                    <label>🕐 Mission End:</label>
+                    <input type="datetime-local" id="missionEnd">
+                </div>
+                
+                <button class="generate-btn" onclick="generateReport()">📊 Generate Report</button>
+            </div>
+            
+            <div class="quick-presets">
+                <span style="color: #666; font-size: 13px; margin-right: 10px;">Quick Presets:</span>
+                <button class="preset-btn" onclick="setPreset('last2hours')">Last 2 Hours</button>
+                <button class="preset-btn" onclick="setPreset('last4hours')">Last 4 Hours</button>
+                <button class="preset-btn" onclick="setPreset('last8hours')">Last 8 Hours</button>
+                <button class="preset-btn" onclick="setPreset('today')">Today</button>
+                <button class="preset-btn" onclick="setPreset('yesterday')">Yesterday</button>
+            </div>
+        </div>
+        
+        <!-- Report Stats -->
+        <div id="reportStats" style="display: none;">
+            <div class="report-stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Tasks</div>
+                    <div class="stat-number" id="statTotal">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">PPM Tasks</div>
+                    <div class="stat-number" id="statPPM" style="color: #1976d2;">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">CM Tasks</div>
+                    <div class="stat-number" id="statCM" style="color: #f57c00;">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Time Window</div>
+                    <div class="stat-number" id="statDuration" style="font-size: 24px;">0h</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Report Container -->
+        <div id="report"></div>
+    </div>
+
+    <!-- Firebase Configuration -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- Mission Report Script -->
+    <script>
+        // Set default time values (last 2 hours)
+        function setDefaultTimes() {
+            const now = new Date();
+            const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+            
+            document.getElementById('missionStart').value = formatDateTimeLocal(twoHoursAgo);
+            document.getElementById('missionEnd').value = formatDateTimeLocal(now);
+        }
+        
+        // Format datetime for datetime-local input
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        
+        // Set quick presets
+        function setPreset(type) {
+            const now = new Date();
+            let start;
+            
+            switch(type) {
+                case 'last2hours':
+                    start = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+                    break;
+                case 'last4hours':
+                    start = new Date(now.getTime() - (4 * 60 * 60 * 1000));
+                    break;
+                case 'last8hours':
+                    start = new Date(now.getTime() - (8 * 60 * 60 * 1000));
+                    break;
+                case 'today':
+                    start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+                    start = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0);
+                    now.setHours(0, 0, 0, 0);
+                    break;
+            }
+            
+            document.getElementById('missionStart').value = formatDateTimeLocal(start);
+            document.getElementById('missionEnd').value = formatDateTimeLocal(now);
+        }
+        
+        // Generate mission report
+        async function generateReport() {
+            const missionStartInput = document.getElementById('missionStart').value;
+            const missionEndInput = document.getElementById('missionEnd').value;
+            
+            if (!missionStartInput || !missionEndInput) {
+                alert('Please select both mission start and end times');
+                return;
+            }
+            
+            const missionStart = new Date(missionStartInput).getTime();
+            const missionEnd = new Date(missionEndInput).getTime();
+            
+            if (missionStart > missionEnd) {
+                alert('Mission start time must be before end time');
+                return;
+            }
+            
+            const container = document.getElementById('report');
+            container.innerHTML = '<div class="loading">⏳ Loading mission report...</div>';
+            
+            try {
+                // Fetch PPM tasks
+                const ppmSnapshot = await firebase.database().ref('/ppmTasks')
+                    .orderByChild('updatedAt')
+                    .startAt(new Date(missionStart).toISOString())
+                    .endAt(new Date(missionEnd).toISOString())
+                    .once('value');
+                
+                // Fetch CM tasks
+                const cmSnapshot = await firebase.database().ref('/cmTasks')
+                    .orderByChild('updatedAt')
+                    .startAt(new Date(missionStart).toISOString())
+                    .endAt(new Date(missionEnd).toISOString())
+                    .once('value');
+                
+                const ppmTasks = [];
+                const cmTasks = [];
+                
+                ppmSnapshot.forEach(child => {
+                    const task = child.val();
+                    if (task.updatedAt) {
+                        const taskTime = new Date(task.updatedAt).getTime();
+                        if (taskTime >= missionStart && taskTime <= missionEnd) {
+                            ppmTasks.push({...task, type: 'PPM'});
+                        }
+                    }
+                });
+                
+                cmSnapshot.forEach(child => {
+                    const task = child.val();
+                    if (task.updatedAt) {
+                        const taskTime = new Date(task.updatedAt).getTime();
+                        if (taskTime >= missionStart && taskTime <= missionEnd) {
+                            cmTasks.push({...task, type: 'CM'});
+                        }
+                    }
+                });
+                
+                // Combine and sort by updatedAt
+                const allTasks = [...ppmTasks, ...cmTasks].sort((a, b) => {
+                    return new Date(b.updatedAt) - new Date(a.updatedAt);
+                });
+                
+                // Update stats
+                updateStats(ppmTasks.length, cmTasks.length, missionStart, missionEnd);
+                
+                // Render report
+                renderMissionReport(allTasks);
+                
+            } catch (error) {
+                console.error('Error fetching mission data:', error);
+                container.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">❌</div>
+                        <h2>Error Loading Report</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Update statistics
+        function updateStats(ppmCount, cmCount, start, end) {
+            const total = ppmCount + cmCount;
+            const duration = Math.round((end - start) / (1000 * 60 * 60)); // hours
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPPM').textContent = ppmCount;
+            document.getElementById('statCM').textContent = cmCount;
+            document.getElementById('statDuration').textContent = duration + 'h';
+            
+            document.getElementById('reportStats').style.display = 'block';
+        }
+        
+        // Render filtered tasks into the report section
+        function renderMissionReport(tasks) {
+            const container = document.getElementById('report');
+            container.innerHTML = '';
+
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="no-results">
+                        <div class="no-results-icon">📭</div>
+                        <h2>No Tasks Found</h2>
+                        <p>No tasks were updated during the selected mission time window.</p>
+                        <p style="color: #888; font-size: 14px;">Try expanding your time range or check if tasks have updatedAt timestamps.</p>
+                    </div>
+                `;
+                document.getElementById('reportStats').style.display = 'none';
+                return;
+            }
+
+            tasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                
+                const typeBadge = task.type === 'PPM' ? 
+                    '<span class="task-type-badge badge-ppm">PPM</span>' :
+                    '<span class="task-type-badge badge-cm">CM</span>';
+                
+                const title = task.description || task.workOrder || 'Untitled Task';
+                const description = task.type === 'PPM' ? 
+                    `${task.type || 'N/A'} - ${task.equipmentType || 'N/A'}` :
+                    `Work Order: ${task.workOrder || 'N/A'} - Priority: ${task.priority || 'N/A'}`;
+                
+                const status = task.status || 'Unknown';
+                const updatedAt = new Date(task.updatedAt).toLocaleString();
+                
+                card.innerHTML = `
+                    ${typeBadge}
+                    <h3>${title}</h3>
+                    <p>${description}</p>
+                    <div class="task-meta">
+                        <span>📅 <strong>Updated:</strong> ${updatedAt}</span>
+                        <span>🔄 <strong>Status:</strong> ${status}</span>
+                        ${task.assignedTo ? `<span>👤 <strong>Assigned:</strong> ${task.assignedTo}</span>` : ''}
+                        ${task.location ? `<span>📍 <strong>Location:</strong> ${task.location}</span>` : ''}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            setDefaultTimes();
+            console.log('✅ Mission Report page loaded');
+            console.log('🔥 Firebase:', typeof firebase !== 'undefined' ? 'Loaded' : 'Not loaded');
+        });
+    </script>
+</body>
+</html>
